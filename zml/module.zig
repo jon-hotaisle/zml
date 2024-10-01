@@ -244,6 +244,7 @@ pub const CompilationContext = struct {
 
             var fn_res_values: [out_tensor_count]mlir.Value = undefined;
             self.extractValuesAndTypes(&fn_res, &fn_res_values, fn_res_types, fn_res_shapes, fn_res_donations);
+            std.log.warn("fn_res_values : {any}", .{fn_res_values});
             const fn_ret = dialect.func.return_(mlir_ctx, &fn_res_values, loc);
             fn_body.addOperationsRecursive(fn_ret);
         }
@@ -357,6 +358,17 @@ pub const CompilationContext = struct {
             log.warn("Didn't produced the expected IR:\n{s}", .{mlir_bytecode.items});
             return err;
         };
+    }
+
+    pub fn getShardingConstraints(self: CompilationContext, shape: Shape) mlir.StringAttribute {
+        const mlir_ctx = self.mlirCtx();
+
+        const num_partitions = self._platform.sharding().num_partitions;
+        var sharding_str: std.BoundedArray(u8, 128) = .{};
+
+        writeShardingRepresentation(shape, num_partitions, sharding_str.writer()) catch unreachable;
+        defer sharding_str.len = 0;
+        return mlir.StringAttribute.init(mlir_ctx, sharding_str.constSlice());
     }
 
     fn addShardingAttributes(self: CompilationContext, attributes: []AttributeList, shapes: []const Shape) void {

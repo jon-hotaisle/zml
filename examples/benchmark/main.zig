@@ -9,7 +9,7 @@ const async_ = asynk.async_;
 const Benchmark = struct {
     pub fn forward(self: Benchmark, a: zml.Tensor, b: zml.Tensor) zml.Tensor {
         _ = self;
-        return a.dot(b, .{.k});
+        return a.withSharding(.{.k}).dot(b.withSharding(.{.k}), .{.k});
     }
 };
 
@@ -68,7 +68,7 @@ pub fn asyncMain() !void {
                         deviceKind,
                     });
                     // we only list 1 CPU device
-                    if (target == .cpu) break;
+                    if (target == .cpu and !platform.compilation_options.sharding_enabled) break;
                 }
             }
         }

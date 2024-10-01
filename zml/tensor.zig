@@ -160,9 +160,27 @@ pub const Tensor = struct {
     }
 
     pub fn withSharding(self: Tensor, axes_: anytype) Tensor {
-        var res = self;
-        res._shape = self._shape.withSharding(axes_);
-        return res;
+        const ctx = self.getContext();
+
+        if (ctx._platform.compilation_options.sharding_enabled) {
+            var res = self;
+            res._shape = self._shape.withSharding(axes_);
+            const loc = ctx.mlirCtx().location(@src());
+
+            const sharding_spec = ctx.getShardingConstraints(res._shape);
+
+            const op = dialect.stablehlo.sharding(
+                ctx.mlirCtx(),
+                &.{self.value()},
+                sharding_spec,
+                &.{self.value().getType()},
+                loc,
+            );
+
+            return _result(res._shape, op.result(0));
+        } else {
+            return self;
+        }
     }
 
     /// Returns a Tensor with new tag names.
